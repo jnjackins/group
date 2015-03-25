@@ -1,4 +1,4 @@
-package group // import sigint.ca/group
+package group // import "sigint.ca/group"
 
 import (
 	"bufio"
