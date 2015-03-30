@@ -2,25 +2,45 @@ package group // import "sigint.ca/group"
 
 import (
 	"bufio"
-	"errors"
-	"io"
+	"fmt"
 	"os"
 	"strings"
+	"time"
+)
+
+var (
+	groupModTime time.Time
+	groupNames   map[string]string
 )
 
 func Name(gid string) (string, error) {
-	groupf, err := os.Open("/etc/group")
+	stat, err := os.Stat("/etc/group")
 	if err != nil {
-		return "", errors.New("group file does not exsts")
+		return "", fmt.Errorf("group: %s", err)
 	}
-	b := bufio.NewReader(groupf)
-	for {
-		line, err := b.ReadString('\n')
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			return "", errors.New("error reading group file")
+	if stat.ModTime() != groupModTime || groupNames == nil {
+		if err := populateMap(); err != nil {
+			return "", fmt.Errorf("group: %s", err)
 		}
+		groupModTime = stat.ModTime()
+	}
+	if name, ok := groupNames[gid]; ok {
+		return name, nil
+	} else {
+		return "", fmt.Errorf("group: gid not found: %d", gid)
+	}
+}
+
+func populateMap() error {
+	groupNames = make(map[string]string)
+	f, err := os.Open("/etc/group")
+	if err != nil {
+		return err
+	}
+	b := bufio.NewReader(f)
+	scanner := bufio.NewScanner(b)
+	for scanner.Scan() {
+		line := scanner.Text()
 		if line[0] == '#' {
 			continue
 		}
@@ -28,9 +48,7 @@ func Name(gid string) (string, error) {
 		if len(fields) != 4 {
 			continue
 		}
-		if fields[2] == gid {
-			return fields[0], nil
-		}
+		groupNames[fields[2]] = fields[0]
 	}
-	return "", errors.New("group not found")
+	return scanner.Err()
 }
