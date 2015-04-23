@@ -37,6 +37,7 @@ func populateMap() error {
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 	b := bufio.NewReader(f)
 	scanner := bufio.NewScanner(b)
 	for scanner.Scan() {
